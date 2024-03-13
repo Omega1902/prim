@@ -6,23 +6,38 @@ trait PrimCalc {
 
 struct Sieve {}
 
+impl Sieve {
+    fn num_to_index(number: usize) -> usize {
+        return (number - 1) / 2 - 1;
+    }
+
+    fn index_to_num(index: usize) -> usize {
+        return (index + 1) * 2 + 1;
+    }
+}
+
 impl PrimCalc for Sieve {
     fn is_prim(number: usize) -> bool {
-        if number < 2 {
+        if number == 2 {
+            return true;
+        }
+        if number < 2 || number % 2 == 0 {
             return false;
         }
-        let mut sieve = vec![true; number + 1];
-        let root = number.sqrt();
-        for i in 2..=root {
+        let number_index = Sieve::num_to_index(number);
+        let mut sieve = vec![true; number_index + 1];
+        let root = Sieve::num_to_index(number.sqrt());
+        for i in 0..=root {
             if !sieve[i] {
                 continue;
             }
-            for mul in (i * 2..=number).step_by(i) {
+            let cur_prim = Sieve::index_to_num(i);
+            for mul in (i + cur_prim..=number_index).step_by(cur_prim) {
                 sieve[mul] = false;
             }
         }
 
-        sieve[number]
+        sieve[number_index]
     }
 }
 
@@ -32,16 +47,7 @@ fn print_is_prim(number: usize) {
 
 fn main() {
     println!("Hello, world!");
-    for i in [
-        2,
-        20,
-        131,
-        1_000_001,
-        10_000_001,
-        100_000_001,
-        1_000_000_001,
-        10_000_000_001,
-    ] {
+    for i in [2, 20, 131, 1_000_001, 10_000_001, 100_000_001, 1_000_000_007, 10_000_000_001] {
         print_is_prim(i);
     }
 }
