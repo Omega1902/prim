@@ -1,4 +1,5 @@
 use ::num::integer::Roots;
+use bitvec::prelude::*;
 
 trait PrimCalc {
     fn is_prim(num: usize) -> bool;
@@ -8,11 +9,11 @@ struct Sieve {}
 
 impl Sieve {
     fn num_to_index(number: usize) -> usize {
-        return (number - 1) / 2 - 1;
+        (number - 1) / 2 - 1
     }
 
     fn index_to_num(index: usize) -> usize {
-        return (index + 1) * 2 + 1;
+        (index + 1) * 2 + 1
     }
 }
 
@@ -25,7 +26,7 @@ impl PrimCalc for Sieve {
             return false;
         }
         let number_index = Sieve::num_to_index(number);
-        let mut sieve = vec![true; number_index + 1];
+        let mut sieve = bitvec![1; number_index + 1];
         let root = Sieve::num_to_index(number.sqrt());
         for i in 0..=root {
             if !sieve[i] {
@@ -33,7 +34,7 @@ impl PrimCalc for Sieve {
             }
             let cur_prim = Sieve::index_to_num(i);
             for mul in (i + cur_prim..=number_index).step_by(cur_prim) {
-                sieve[mul] = false;
+                sieve.set(mul, false);
             }
         }
 
