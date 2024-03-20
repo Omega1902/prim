@@ -1,7 +1,8 @@
-use std::{io, usize};
+use std::usize;
 
 use ::num::integer::Roots;
 use bitvec::prelude::*;
+use clap::Parser;
 use num::{Integer, ToPrimitive};
 use num_format::{Locale, ToFormattedString};
 
@@ -217,38 +218,32 @@ fn parse_to_integer(input: &str) -> Result<u128, String> {
     }
 }
 
+#[derive(Parser)]
+#[command(version, about, long_about = None)]
+struct Cli {
+    /// Number to check if it is a prim
+    #[arg(value_parser = parse_to_integer)]
+    number: u128,
+
+    /// Searches for previous prim instead
+    #[arg(short, long)]
+    previous: bool,
+
+    /// Searches for next prim instead
+    #[arg(short, long)]
+    next: bool,
+}
+
 fn main() {
+    let cli = Cli::parse();
+
     let mut sieve = SieveOfEratosthenes::new();
-    loop {
-        println!("Type in the next positive integer to check if it is a prim");
-        let mut input = String::new();
-        let input_length = io::stdin().read_line(&mut input);
-        if input_length.is_err() {
-            println!("Error reading line");
-            continue;
-        }
-        if input.trim().starts_with('p') {
-            match input.split_once(' ') {
-                None => println!("No argument for previous provided"),
-                Some(res) => match parse_to_integer(res.1.trim()) {
-                    Err(err_msg) => println!("{err_msg}"),
-                    Ok(input_number) => print_prev_prim(input_number, &mut sieve),
-                },
-            }
-        } else if input.trim().starts_with('n') {
-            match input.split_once(' ') {
-                None => println!("No argument for next provided"),
-                Some(res) => match parse_to_integer(res.1.trim()) {
-                    Err(err_msg) => println!("{err_msg}"),
-                    Ok(input_number) => print_next_prim(input_number, &mut sieve),
-                },
-            }
-        } else {
-            match parse_to_integer(input.trim()) {
-                Ok(input_number) => print_is_prim(input_number, &mut sieve),
-                Err(err_msg) => println!("{err_msg}"),
-            }
-        }
+    if cli.previous {
+        print_prev_prim(cli.number, &mut sieve);
+    } else if cli.next {
+        print_next_prim(cli.number, &mut sieve);
+    } else {
+        print_is_prim(cli.number, &mut sieve);
     }
     // 1_000_001
     // 10_000_001
