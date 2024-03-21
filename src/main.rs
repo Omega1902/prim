@@ -1,7 +1,7 @@
 use clap::Parser;
 use num_format::{Locale, ToFormattedString};
 
-use prim::{PrimCalc, SieveOfEratosthenes};
+use prim::{BigPrim, PrimCalc, PrimCalcExtended};
 
 // Distribution from 3 until to 255 (1 Byte area):
 // 21.03 % -> Better stored in sieve (threshold: 6.25 %)
@@ -30,7 +30,7 @@ fn print_is_prim<T: PrimCalc>(number: u128, prim_solver: &mut T) {
     }
 }
 
-fn print_prev_prim<T: PrimCalc>(number: u128, prim_solver: &mut T) {
+fn print_prev_prim<T: PrimCalcExtended>(number: u128, prim_solver: &mut T) {
     match prim_solver.previous_prim(number) {
         None => println!("There is no prim before {}", number.to_formatted_string(&Locale::de)),
         Some(prim) => println!(
@@ -41,7 +41,7 @@ fn print_prev_prim<T: PrimCalc>(number: u128, prim_solver: &mut T) {
     }
 }
 
-fn print_next_prim<T: PrimCalc>(number: u128, prim_solver: &mut T) {
+fn print_next_prim<T: PrimCalcExtended>(number: u128, prim_solver: &mut T) {
     match prim_solver.next_prim(number) {
         None => println!("There is no prim calculateable after {}", number.to_formatted_string(&Locale::de)),
         Some(prim) => println!(
@@ -62,7 +62,7 @@ fn parse_to_integer(input: &str) -> Result<u128, String> {
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
 struct Cli {
-    /// Number to check if it is a prim
+    /// Number to check if it is a prim. Allows _ as seperator
     #[arg(value_parser = parse_to_integer)]
     number: u128,
 
@@ -78,7 +78,7 @@ struct Cli {
 fn main() {
     let cli = Cli::parse();
 
-    let mut sieve = SieveOfEratosthenes::new();
+    let mut sieve = BigPrim::new();
     if cli.previous {
         print_prev_prim(cli.number, &mut sieve);
     } else if cli.next {
