@@ -1,53 +1,34 @@
 use clap::Parser;
 use num_format::{Locale, ToFormattedString};
 
-use prim::{BigPrim, PrimCalc, PrimCalcExtended};
+use prime::{BigPrime, PrimeCalc, PrimeCalcExtended};
 
-// Distribution from 3 until to 255 (1 Byte area):
-// 21.03 % -> Better stored in sieve (threshold: 6.25 %)
-// Distribution from 257 until to 65.535 (2 Byte area):
-// 9.94 % -> Better stored in sieve (threshold: 3.12 %)
-// Distribution from 65.537 until to 999.999 (4 Byte area):
-// 7.70 % -> Better stored in sieve (threshold: 1.56 %)
-// Distribution from 1.000.001 until to 9.999.999 (4 Byte area):
-// 6.51 % -> Better stored in sieve (threshold: 1.56 %)
-// Distribution from 10.000.001 until to 99.999.999 (4 Byte area):
-// 5.66 % -> Better stored in sieve (threshold: 1.56 %)
-// Distribution from 100.000.001 until to 999.999.999 (4 Byte area):
-// 5.01 % -> Better stored in sieve (threshold: 1.56 %)
-// Distribution from 1.000.000.001 until to 4.294.967.295 (4 Byte area):
-// 4.63 % -> Better stored in sieve (threshold: 1.56 %)
-// Distribution from 4.294.967.296 until to 9.999.999.999 (8 Byte area):
-// 4.41 % -> Better stored in sieve (threshold: 0.78 %)
-// Distribution from 10.000.000.001 until to 100.000.000.001 (8 Byte area):
-// 4.07 % -> Better stored in sieve (threshold: 0.78 %)
-
-fn print_is_prim<T: PrimCalc>(number: u128, prim_solver: &mut T) {
-    match prim_solver.is_prim(number) {
-        Some(true) => println!("{} is a prim", number.to_formatted_string(&Locale::de)),
-        Some(false) => println!("{} is NOT a prim", number.to_formatted_string(&Locale::de)),
-        None => println!("Cannot calculate whether {} is a prim", number.to_formatted_string(&Locale::de)),
+fn print_is_prime<T: PrimeCalc>(number: u128, prime_solver: &mut T) {
+    match prime_solver.is_prime(number) {
+        Some(true) => println!("{} is a prime", number.to_formatted_string(&Locale::de)),
+        Some(false) => println!("{} is NOT a prime", number.to_formatted_string(&Locale::de)),
+        None => println!("Cannot calculate whether {} is a prime", number.to_formatted_string(&Locale::de)),
     }
 }
 
-fn print_prev_prim<T: PrimCalcExtended>(number: u128, prim_solver: &mut T) {
-    match prim_solver.previous_prim(number) {
-        None => println!("There is no prim before {}", number.to_formatted_string(&Locale::de)),
-        Some(prim) => println!(
-            "Previous prim before {} is: {}",
+fn print_prev_prime<T: PrimeCalcExtended>(number: u128, prime_solver: &mut T) {
+    match prime_solver.previous_prime(number) {
+        None => println!("There is no prime before {}", number.to_formatted_string(&Locale::de)),
+        Some(prime) => println!(
+            "Previous prime before {} is: {}",
             number.to_formatted_string(&Locale::de),
-            prim.to_formatted_string(&Locale::de)
+            prime.to_formatted_string(&Locale::de)
         ),
     }
 }
 
-fn print_next_prim<T: PrimCalcExtended>(number: u128, prim_solver: &mut T) {
-    match prim_solver.next_prim(number) {
-        None => println!("There is no prim calculateable after {}", number.to_formatted_string(&Locale::de)),
-        Some(prim) => println!(
-            "Next prim after {} is: {}",
+fn print_next_prime<T: PrimeCalcExtended>(number: u128, prime_solver: &mut T) {
+    match prime_solver.next_prime(number) {
+        None => println!("There is no prime calculateable after {}", number.to_formatted_string(&Locale::de)),
+        Some(prime) => println!(
+            "Next prime after {} is: {}",
             number.to_formatted_string(&Locale::de),
-            prim.to_formatted_string(&Locale::de)
+            prime.to_formatted_string(&Locale::de)
         ),
     }
 }
@@ -62,15 +43,15 @@ fn parse_to_integer(input: &str) -> Result<u128, String> {
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
 struct Cli {
-    /// Number to check if it is a prim. Allows _ as seperator
+    /// Number to check if it is a prime. Allows _ as seperator
     #[arg(value_parser = parse_to_integer)]
     number: u128,
 
-    /// Searches for previous prim instead
+    /// Searches for previous prime instead
     #[arg(short, long)]
     previous: bool,
 
-    /// Searches for next prim instead
+    /// Searches for next prime instead
     #[arg(short, long)]
     next: bool,
 }
@@ -78,13 +59,13 @@ struct Cli {
 fn main() {
     let cli = Cli::parse();
 
-    let mut sieve = BigPrim::new();
+    let mut sieve = BigPrime::new();
     if cli.previous {
-        print_prev_prim(cli.number, &mut sieve);
+        print_prev_prime(cli.number, &mut sieve);
     } else if cli.next {
-        print_next_prim(cli.number, &mut sieve);
+        print_next_prime(cli.number, &mut sieve);
     } else {
-        print_is_prim(cli.number, &mut sieve);
+        print_is_prime(cli.number, &mut sieve);
     }
     // 1_000_001
     // 10_000_001

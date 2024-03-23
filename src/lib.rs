@@ -5,20 +5,20 @@ use bitvec::prelude::*;
 use num::{Integer, ToPrimitive};
 use num_format::{Locale, ToFormattedString};
 
-/// PrimCalc traits adds functions to verify if a number is a prim and find the next or previous prims
-pub trait PrimCalc {
-    /// returns true, if the given number is a prim
-    fn is_prim(&mut self, num: u128) -> Option<bool>;
+/// PrimeCalc traits adds functions to verify if a number is a prime and find the next or previous primes
+pub trait PrimeCalc {
+    /// returns true, if the given number is a prime
+    fn is_prime(&mut self, num: u128) -> Option<bool>;
 }
 
-pub trait PrimCalcExtended: PrimCalc {
-    /// returns the previous prim before the given number, if there is any
-    /// previous_prim(3) -> Some(2)
-    /// previous_prim(2) -> None
-    fn previous_prim(&mut self, num: u128) -> Option<u128>;
+pub trait PrimeCalcExtended: PrimeCalc {
+    /// returns the previous prime before the given number, if there is any
+    /// previous_prime(3) -> Some(2)
+    /// previous_prime(2) -> None
+    fn previous_prime(&mut self, num: u128) -> Option<u128>;
 
-    /// returns the next prim after the given number, if the algorithm can calculate it
-    fn next_prim(&mut self, num: u128) -> Option<u128>;
+    /// returns the next prime after the given number, if the algorithm can calculate it
+    fn next_prime(&mut self, num: u128) -> Option<u128>;
 }
 
 /// converts a number to the index.
@@ -35,21 +35,28 @@ fn index_to_num(index: usize) -> usize {
 }
 
 /// Trait that returns an BitVec array of solved primes
-trait Sieve: PrimCalc {
-    fn ensure(&mut self, max_value: usize);
+trait Sieve: PrimeCalc {
+    fn calc_until(&mut self, max_value: usize);
 }
 
 struct SieveOfEratosthenes {
-    prims: BitVec<usize>,
+    primes: BitVec<usize>,
 }
 
 impl SieveOfEratosthenes {
     fn new() -> Self {
-        SieveOfEratosthenes { prims: bitvec![3;1] }
+        SieveOfEratosthenes { primes: bitvec![3;1] }
     }
 
     fn is_included(&self, number: usize) -> bool {
-        index_to_num(self.prims.len() - 1) >= number
+        index_to_num(self.primes.len() - 1) >= number
+    }
+
+    fn is_prime_nocalc(&self, num: u128) -> Option<bool> {
+        if !self.is_included(num.to_usize()?) {
+            return None;
+        }
+        Some(self.primes[num_to_index(num as usize)])
     }
 }
 
@@ -60,9 +67,9 @@ impl Default for SieveOfEratosthenes {
 }
 
 impl Sieve for SieveOfEratosthenes {
-    fn ensure(&mut self, max_value: usize) {
+    fn calc_until(&mut self, max_value: usize) {
         let max_index = if max_value < 3 { 0 } else { num_to_index(max_value) };
-        if max_index < self.prims.len() {
+        if max_index < self.primes.len() {
             return;
         }
         let mut root = max_value.sqrt();
@@ -70,41 +77,39 @@ impl Sieve for SieveOfEratosthenes {
             root = 3;
         }
         let root_index = num_to_index(root);
-        self.prims = bitvec![1; max_index + 1];
+        self.primes = bitvec![1; max_index + 1];
         for i in 0..=root_index {
-            if !self.prims[i] {
+            if !self.primes[i] {
                 continue;
             }
-            let cur_prim = index_to_num(i);
-            for mul in (i + cur_prim..=max_index).step_by(cur_prim) {
-                self.prims.set(mul, false);
+            let cur_prime = index_to_num(i);
+            for mul in (i + cur_prime..=max_index).step_by(cur_prime) {
+                self.primes.set(mul, false);
             }
         }
     }
 }
 
-impl PrimCalc for SieveOfEratosthenes {
-    fn is_prim(&mut self, num: u128) -> Option<bool> {
-        if !self.is_included(num.to_usize()?) {
-            return None;
-        }
-        Some(self.prims[num_to_index(num as usize)])
+impl PrimeCalc for SieveOfEratosthenes {
+    fn is_prime(&mut self, num: u128) -> Option<bool> {
+        self.calc_until(num.sqrt() as usize);
+        self.is_prime_nocalc(num)
     }
 }
 
-/// A PrimCalc powered with the Sieve of Eratosthenes as a base
-pub struct BigPrim {
+/// A PrimeCalc powered with the Sieve of Eratosthenes as a base
+pub struct BigPrime {
     base: SieveOfEratosthenes,
 }
 
-impl BigPrim {
+impl BigPrime {
     pub fn new() -> Self {
-        BigPrim { base: SieveOfEratosthenes::new() }
+        BigPrime { base: SieveOfEratosthenes::new() }
     }
 
     fn print_distribution(&self, from: usize, to: usize, bytes: u8) {
         let distribution: f64 =
-            self.base.prims[num_to_index(from)..=num_to_index(to)].count_ones() as f64 / (to - from) as f64;
+            self.base.primes[num_to_index(from)..=num_to_index(to)].count_ones() as f64 / (to - from) as f64;
         println!(
             "Distribution from {} until to {} ({bytes} Byte area):",
             from.to_formatted_string(&Locale::de),
@@ -122,7 +127,7 @@ impl BigPrim {
 
     /// ensures that the base is filled until the given max value and max index
     fn ensure_base(&mut self, max: usize) {
-        self.base.ensure(max);
+        self.base.calc_until(max);
 
         let root = max.sqrt();
         if (root as u64) > 10_000_000_001 {
@@ -139,21 +144,21 @@ impl BigPrim {
     }
 }
 
-impl Default for BigPrim {
+impl Default for BigPrime {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl PrimCalc for BigPrim {
-    fn is_prim(&mut self, number: u128) -> Option<bool> {
+impl PrimeCalc for BigPrime {
+    fn is_prime(&mut self, number: u128) -> Option<bool> {
         if number == 2 || number == 3 {
             return Some(true);
         }
         if number < 2 || number.is_even() {
             return Some(false);
         }
-        if let Some(result) = self.base.is_prim(number) {
+        if let Some(result) = self.base.is_prime_nocalc(number) {
             return Some(result);
         }
 
@@ -165,12 +170,12 @@ impl PrimCalc for BigPrim {
 
         let root_index = num_to_index(root);
         for i in 0..=root_index {
-            if !self.base.prims[i] {
+            if !self.base.primes[i] {
                 continue;
             }
 
-            let cur_prim = index_to_num(i);
-            if number % cur_prim as u128 == 0 {
+            let cur_prime = index_to_num(i);
+            if number % cur_prime as u128 == 0 {
                 return Some(false);
             }
         }
@@ -179,8 +184,8 @@ impl PrimCalc for BigPrim {
     }
 }
 
-impl PrimCalcExtended for BigPrim {
-    fn previous_prim(&mut self, num: u128) -> Option<u128> {
+impl PrimeCalcExtended for BigPrime {
+    fn previous_prime(&mut self, num: u128) -> Option<u128> {
         if num <= 2 {
             return None;
         }
@@ -192,13 +197,13 @@ impl PrimCalcExtended for BigPrim {
             cur -= 1;
         }
         loop {
-            if self.is_prim(cur).expect("this is not calculateable") {
+            if self.is_prime(cur).expect("this is not calculateable") {
                 return Some(cur);
             }
             cur -= 2;
         }
     }
-    fn next_prim(&mut self, num: u128) -> Option<u128> {
+    fn next_prime(&mut self, num: u128) -> Option<u128> {
         if num < 2 {
             return Some(2);
         }
@@ -207,7 +212,7 @@ impl PrimCalcExtended for BigPrim {
             cur += 1; // does not need to be checked, since integer MAX is always odd
         }
         loop {
-            if self.is_prim(cur)? {
+            if self.is_prime(cur)? {
                 return Some(cur);
             }
             cur = cur.checked_add(2)?;
@@ -231,77 +236,77 @@ mod tests {
 
     #[test]
     fn test_sieve() {
-        assert_eq!(BigPrim::new().is_prim(0), Some(false));
-        assert_eq!(BigPrim::new().is_prim(1), Some(false));
-        assert_eq!(BigPrim::new().is_prim(2), Some(true));
-        assert_eq!(BigPrim::new().is_prim(3), Some(true));
-        assert_eq!(BigPrim::new().is_prim(4), Some(false));
-        assert_eq!(BigPrim::new().is_prim(5), Some(true));
-        assert_eq!(BigPrim::new().is_prim(6), Some(false));
-        assert_eq!(BigPrim::new().is_prim(7), Some(true));
-        assert_eq!(BigPrim::new().is_prim(8), Some(false));
-        assert_eq!(BigPrim::new().is_prim(9), Some(false));
-        assert_eq!(BigPrim::new().is_prim(10), Some(false));
-        assert_eq!(BigPrim::new().is_prim(11), Some(true));
-        assert_eq!(BigPrim::new().is_prim(12), Some(false));
-        assert_eq!(BigPrim::new().is_prim(25), Some(false));
-        assert_eq!(BigPrim::new().is_prim(131), Some(true));
-        assert_eq!(BigPrim::new().is_prim(1_000_001), Some(false));
-        assert_eq!(BigPrim::new().is_prim(1_000_003), Some(true));
+        assert_eq!(BigPrime::new().is_prime(0), Some(false));
+        assert_eq!(BigPrime::new().is_prime(1), Some(false));
+        assert_eq!(BigPrime::new().is_prime(2), Some(true));
+        assert_eq!(BigPrime::new().is_prime(3), Some(true));
+        assert_eq!(BigPrime::new().is_prime(4), Some(false));
+        assert_eq!(BigPrime::new().is_prime(5), Some(true));
+        assert_eq!(BigPrime::new().is_prime(6), Some(false));
+        assert_eq!(BigPrime::new().is_prime(7), Some(true));
+        assert_eq!(BigPrime::new().is_prime(8), Some(false));
+        assert_eq!(BigPrime::new().is_prime(9), Some(false));
+        assert_eq!(BigPrime::new().is_prime(10), Some(false));
+        assert_eq!(BigPrime::new().is_prime(11), Some(true));
+        assert_eq!(BigPrime::new().is_prime(12), Some(false));
+        assert_eq!(BigPrime::new().is_prime(25), Some(false));
+        assert_eq!(BigPrime::new().is_prime(131), Some(true));
+        assert_eq!(BigPrime::new().is_prime(1_000_001), Some(false));
+        assert_eq!(BigPrime::new().is_prime(1_000_003), Some(true));
     }
 
     #[test]
     fn test_sieve_previous() {
-        assert_eq!(BigPrim::new().previous_prim(0), None);
-        assert_eq!(BigPrim::new().previous_prim(1), None);
-        assert_eq!(BigPrim::new().previous_prim(2), None);
-        assert_eq!(BigPrim::new().previous_prim(3), Some(2));
-        assert_eq!(BigPrim::new().previous_prim(4), Some(3));
-        assert_eq!(BigPrim::new().previous_prim(5), Some(3));
-        assert_eq!(BigPrim::new().previous_prim(6), Some(5));
-        assert_eq!(BigPrim::new().previous_prim(7), Some(5));
-        assert_eq!(BigPrim::new().previous_prim(8), Some(7));
-        assert_eq!(BigPrim::new().previous_prim(9), Some(7));
-        assert_eq!(BigPrim::new().previous_prim(10), Some(7));
-        assert_eq!(BigPrim::new().previous_prim(11), Some(7));
-        assert_eq!(BigPrim::new().previous_prim(12), Some(11));
-        assert_eq!(BigPrim::new().previous_prim(25), Some(23));
-        assert_eq!(BigPrim::new().previous_prim(132), Some(131));
-        assert_eq!(BigPrim::new().previous_prim(1_000_004), Some(1_000_003));
+        assert_eq!(BigPrime::new().previous_prime(0), None);
+        assert_eq!(BigPrime::new().previous_prime(1), None);
+        assert_eq!(BigPrime::new().previous_prime(2), None);
+        assert_eq!(BigPrime::new().previous_prime(3), Some(2));
+        assert_eq!(BigPrime::new().previous_prime(4), Some(3));
+        assert_eq!(BigPrime::new().previous_prime(5), Some(3));
+        assert_eq!(BigPrime::new().previous_prime(6), Some(5));
+        assert_eq!(BigPrime::new().previous_prime(7), Some(5));
+        assert_eq!(BigPrime::new().previous_prime(8), Some(7));
+        assert_eq!(BigPrime::new().previous_prime(9), Some(7));
+        assert_eq!(BigPrime::new().previous_prime(10), Some(7));
+        assert_eq!(BigPrime::new().previous_prime(11), Some(7));
+        assert_eq!(BigPrime::new().previous_prime(12), Some(11));
+        assert_eq!(BigPrime::new().previous_prime(25), Some(23));
+        assert_eq!(BigPrime::new().previous_prime(132), Some(131));
+        assert_eq!(BigPrime::new().previous_prime(1_000_004), Some(1_000_003));
     }
 
     #[test]
     fn test_sieve_next() {
-        assert_eq!(BigPrim::new().next_prim(0), Some(2));
-        assert_eq!(BigPrim::new().next_prim(1), Some(2));
-        assert_eq!(BigPrim::new().next_prim(2), Some(3));
-        assert_eq!(BigPrim::new().next_prim(3), Some(5));
-        assert_eq!(BigPrim::new().next_prim(4), Some(5));
-        assert_eq!(BigPrim::new().next_prim(5), Some(7));
-        assert_eq!(BigPrim::new().next_prim(6), Some(7));
-        assert_eq!(BigPrim::new().next_prim(7), Some(11));
-        assert_eq!(BigPrim::new().next_prim(8), Some(11));
-        assert_eq!(BigPrim::new().next_prim(9), Some(11));
-        assert_eq!(BigPrim::new().next_prim(10), Some(11));
-        assert_eq!(BigPrim::new().next_prim(11), Some(13));
-        assert_eq!(BigPrim::new().next_prim(12), Some(13));
-        assert_eq!(BigPrim::new().next_prim(25), Some(29));
-        assert_eq!(BigPrim::new().next_prim(130), Some(131));
-        assert_eq!(BigPrim::new().next_prim(1_000_002), Some(1_000_003));
-        assert_eq!(BigPrim::new().next_prim(u128::MAX), None);
+        assert_eq!(BigPrime::new().next_prime(0), Some(2));
+        assert_eq!(BigPrime::new().next_prime(1), Some(2));
+        assert_eq!(BigPrime::new().next_prime(2), Some(3));
+        assert_eq!(BigPrime::new().next_prime(3), Some(5));
+        assert_eq!(BigPrime::new().next_prime(4), Some(5));
+        assert_eq!(BigPrime::new().next_prime(5), Some(7));
+        assert_eq!(BigPrime::new().next_prime(6), Some(7));
+        assert_eq!(BigPrime::new().next_prime(7), Some(11));
+        assert_eq!(BigPrime::new().next_prime(8), Some(11));
+        assert_eq!(BigPrime::new().next_prime(9), Some(11));
+        assert_eq!(BigPrime::new().next_prime(10), Some(11));
+        assert_eq!(BigPrime::new().next_prime(11), Some(13));
+        assert_eq!(BigPrime::new().next_prime(12), Some(13));
+        assert_eq!(BigPrime::new().next_prime(25), Some(29));
+        assert_eq!(BigPrime::new().next_prime(130), Some(131));
+        assert_eq!(BigPrime::new().next_prime(1_000_002), Some(1_000_003));
+        assert_eq!(BigPrime::new().next_prime(u128::MAX), None);
     }
 
     #[test]
     fn test_filled() {
-        let mut sieve = BigPrim::new();
+        let mut sieve = BigPrime::new();
         sieve.ensure_base(999);
-        let len = sieve.base.prims.len();
-        assert_eq!(sieve.is_prim(997), Some(true));
-        assert_eq!(sieve.is_prim(998), Some(false));
-        assert_eq!(sieve.is_prim(999), Some(false));
-        assert_eq!(sieve.is_prim(1_000), Some(false));
-        assert_eq!(sieve.is_prim(999_983), Some(true));
-        assert_eq!(sieve.is_prim(5), Some(true));
-        assert_eq!(sieve.base.prims.len(), len); // len should not have changed
+        let len = sieve.base.primes.len();
+        assert_eq!(sieve.is_prime(997), Some(true));
+        assert_eq!(sieve.is_prime(998), Some(false));
+        assert_eq!(sieve.is_prime(999), Some(false));
+        assert_eq!(sieve.is_prime(1_000), Some(false));
+        assert_eq!(sieve.is_prime(999_983), Some(true));
+        assert_eq!(sieve.is_prime(5), Some(true));
+        assert_eq!(sieve.base.primes.len(), len); // len should not have changed
     }
 }
