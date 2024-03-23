@@ -9,16 +9,45 @@ use num_format::{Locale, ToFormattedString};
 pub trait PrimeCalc {
     /// returns true, if the given number is a prime
     fn is_prime(&mut self, num: u128) -> Option<bool>;
-}
 
-pub trait PrimeCalcExtended: PrimeCalc {
     /// returns the previous prime before the given number, if there is any
     /// previous_prime(3) -> Some(2)
     /// previous_prime(2) -> None
-    fn previous_prime(&mut self, num: u128) -> Option<u128>;
+    fn previous_prime(&mut self, num: u128) -> Option<u128> {
+        if num <= 2 {
+            return None;
+        }
+        if num == 3 {
+            return Some(2);
+        }
+        let mut cur = num - 1;
+        if cur.is_even() {
+            cur -= 1;
+        }
+        loop {
+            if self.is_prime(cur).expect("this is not calculateable") {
+                return Some(cur);
+            }
+            cur -= 2;
+        }
+    }
 
     /// returns the next prime after the given number, if the algorithm can calculate it
-    fn next_prime(&mut self, num: u128) -> Option<u128>;
+    fn next_prime(&mut self, num: u128) -> Option<u128> {
+        if num < 2 {
+            return Some(2);
+        }
+        let mut cur = num.checked_add(1)?;
+        if cur.is_even() {
+            cur += 1; // does not need to be checked, since integer MAX is always odd
+        }
+        loop {
+            if self.is_prime(cur)? {
+                return Some(cur);
+            }
+            cur = cur.checked_add(2)?;
+        }
+    }
 }
 
 /// converts a number to the index.
@@ -39,12 +68,12 @@ trait Sieve: PrimeCalc {
     fn calc_until(&mut self, max_value: usize);
 }
 
-struct SieveOfEratosthenes {
+pub struct SieveOfEratosthenes {
     primes: BitVec<usize>,
 }
 
 impl SieveOfEratosthenes {
-    fn new() -> Self {
+    pub fn new() -> Self {
         SieveOfEratosthenes { primes: bitvec![3;1] }
     }
 
@@ -53,6 +82,12 @@ impl SieveOfEratosthenes {
     }
 
     fn is_prime_nocalc(&self, num: u128) -> Option<bool> {
+        if num == 2 {
+            return Some(true);
+        }
+        if num < 2 || num % 2 == 0 {
+            return Some(false);
+        }
         if !self.is_included(num.to_usize()?) {
             return None;
         }
@@ -92,7 +127,7 @@ impl Sieve for SieveOfEratosthenes {
 
 impl PrimeCalc for SieveOfEratosthenes {
     fn is_prime(&mut self, num: u128) -> Option<bool> {
-        self.calc_until(num.sqrt() as usize);
+        self.calc_until(num as usize);
         self.is_prime_nocalc(num)
     }
 }
@@ -184,42 +219,6 @@ impl PrimeCalc for BigPrime {
     }
 }
 
-impl PrimeCalcExtended for BigPrime {
-    fn previous_prime(&mut self, num: u128) -> Option<u128> {
-        if num <= 2 {
-            return None;
-        }
-        if num == 3 {
-            return Some(2);
-        }
-        let mut cur = num - 1;
-        if cur.is_even() {
-            cur -= 1;
-        }
-        loop {
-            if self.is_prime(cur).expect("this is not calculateable") {
-                return Some(cur);
-            }
-            cur -= 2;
-        }
-    }
-    fn next_prime(&mut self, num: u128) -> Option<u128> {
-        if num < 2 {
-            return Some(2);
-        }
-        let mut cur = num.checked_add(1)?;
-        if cur.is_even() {
-            cur += 1; // does not need to be checked, since integer MAX is always odd
-        }
-        loop {
-            if self.is_prime(cur)? {
-                return Some(cur);
-            }
-            cur = cur.checked_add(2)?;
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -235,7 +234,7 @@ mod tests {
     }
 
     #[test]
-    fn test_sieve() {
+    fn test_big_prime() {
         assert_eq!(BigPrime::new().is_prime(0), Some(false));
         assert_eq!(BigPrime::new().is_prime(1), Some(false));
         assert_eq!(BigPrime::new().is_prime(2), Some(true));
@@ -256,7 +255,7 @@ mod tests {
     }
 
     #[test]
-    fn test_sieve_previous() {
+    fn test_big_prim_previous() {
         assert_eq!(BigPrime::new().previous_prime(0), None);
         assert_eq!(BigPrime::new().previous_prime(1), None);
         assert_eq!(BigPrime::new().previous_prime(2), None);
@@ -276,7 +275,7 @@ mod tests {
     }
 
     #[test]
-    fn test_sieve_next() {
+    fn test_big_prime_next() {
         assert_eq!(BigPrime::new().next_prime(0), Some(2));
         assert_eq!(BigPrime::new().next_prime(1), Some(2));
         assert_eq!(BigPrime::new().next_prime(2), Some(3));
@@ -294,6 +293,67 @@ mod tests {
         assert_eq!(BigPrime::new().next_prime(130), Some(131));
         assert_eq!(BigPrime::new().next_prime(1_000_002), Some(1_000_003));
         assert_eq!(BigPrime::new().next_prime(u128::MAX), None);
+    }
+    #[test]
+    fn test_eratosthenes() {
+        assert_eq!(SieveOfEratosthenes::new().is_prime(0), Some(false));
+        assert_eq!(SieveOfEratosthenes::new().is_prime(1), Some(false));
+        assert_eq!(SieveOfEratosthenes::new().is_prime(2), Some(true));
+        assert_eq!(SieveOfEratosthenes::new().is_prime(3), Some(true));
+        assert_eq!(SieveOfEratosthenes::new().is_prime(4), Some(false));
+        assert_eq!(SieveOfEratosthenes::new().is_prime(5), Some(true));
+        assert_eq!(SieveOfEratosthenes::new().is_prime(6), Some(false));
+        assert_eq!(SieveOfEratosthenes::new().is_prime(7), Some(true));
+        assert_eq!(SieveOfEratosthenes::new().is_prime(8), Some(false));
+        assert_eq!(SieveOfEratosthenes::new().is_prime(9), Some(false));
+        assert_eq!(SieveOfEratosthenes::new().is_prime(10), Some(false));
+        assert_eq!(SieveOfEratosthenes::new().is_prime(11), Some(true));
+        assert_eq!(SieveOfEratosthenes::new().is_prime(12), Some(false));
+        assert_eq!(SieveOfEratosthenes::new().is_prime(25), Some(false));
+        assert_eq!(SieveOfEratosthenes::new().is_prime(131), Some(true));
+        assert_eq!(SieveOfEratosthenes::new().is_prime(1_000_001), Some(false));
+        assert_eq!(SieveOfEratosthenes::new().is_prime(1_000_003), Some(true));
+    }
+
+    #[test]
+    fn test_eratosthenes_previous() {
+        assert_eq!(SieveOfEratosthenes::new().previous_prime(0), None);
+        assert_eq!(SieveOfEratosthenes::new().previous_prime(1), None);
+        assert_eq!(SieveOfEratosthenes::new().previous_prime(2), None);
+        assert_eq!(SieveOfEratosthenes::new().previous_prime(3), Some(2));
+        assert_eq!(SieveOfEratosthenes::new().previous_prime(4), Some(3));
+        assert_eq!(SieveOfEratosthenes::new().previous_prime(5), Some(3));
+        assert_eq!(SieveOfEratosthenes::new().previous_prime(6), Some(5));
+        assert_eq!(SieveOfEratosthenes::new().previous_prime(7), Some(5));
+        assert_eq!(SieveOfEratosthenes::new().previous_prime(8), Some(7));
+        assert_eq!(SieveOfEratosthenes::new().previous_prime(9), Some(7));
+        assert_eq!(SieveOfEratosthenes::new().previous_prime(10), Some(7));
+        assert_eq!(SieveOfEratosthenes::new().previous_prime(11), Some(7));
+        assert_eq!(SieveOfEratosthenes::new().previous_prime(12), Some(11));
+        assert_eq!(SieveOfEratosthenes::new().previous_prime(25), Some(23));
+        assert_eq!(SieveOfEratosthenes::new().previous_prime(132), Some(131));
+        assert_eq!(SieveOfEratosthenes::new().previous_prime(1_000_004), Some(1_000_003));
+    }
+
+    #[test]
+    fn test_eratosthenes_next() {
+        assert_eq!(SieveOfEratosthenes::new().next_prime(0), Some(2));
+        assert_eq!(SieveOfEratosthenes::new().next_prime(1), Some(2));
+        assert_eq!(SieveOfEratosthenes::new().next_prime(2), Some(3));
+        assert_eq!(SieveOfEratosthenes::new().next_prime(3), Some(5));
+        assert_eq!(SieveOfEratosthenes::new().next_prime(4), Some(5));
+        assert_eq!(SieveOfEratosthenes::new().next_prime(5), Some(7));
+        assert_eq!(SieveOfEratosthenes::new().next_prime(6), Some(7));
+        assert_eq!(SieveOfEratosthenes::new().next_prime(7), Some(11));
+        assert_eq!(SieveOfEratosthenes::new().next_prime(8), Some(11));
+        assert_eq!(SieveOfEratosthenes::new().next_prime(9), Some(11));
+        assert_eq!(SieveOfEratosthenes::new().next_prime(10), Some(11));
+        assert_eq!(SieveOfEratosthenes::new().next_prime(11), Some(13));
+        assert_eq!(SieveOfEratosthenes::new().next_prime(12), Some(13));
+        assert_eq!(SieveOfEratosthenes::new().next_prime(25), Some(29));
+        assert_eq!(SieveOfEratosthenes::new().next_prime(130), Some(131));
+        assert_eq!(SieveOfEratosthenes::new().next_prime(1_000_002), Some(1_000_003));
+        assert_eq!(SieveOfEratosthenes::new().next_prime(u128::MAX), None);
     }
 
     #[test]

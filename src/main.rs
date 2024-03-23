@@ -1,17 +1,17 @@
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use num_format::{Locale, ToFormattedString};
 
-use prime::{BigPrime, PrimeCalc, PrimeCalcExtended};
+use prime::{BigPrime, PrimeCalc, SieveOfEratosthenes};
 
-fn print_is_prime<T: PrimeCalc>(number: u128, prime_solver: &mut T) {
-    match prime_solver.is_prime(number) {
+fn print_is_prime(number: u128, prime_solver: &mut Box<dyn PrimeCalc>) {
+    match (*prime_solver).is_prime(number) {
         Some(true) => println!("{} is a prime", number.to_formatted_string(&Locale::de)),
         Some(false) => println!("{} is NOT a prime", number.to_formatted_string(&Locale::de)),
         None => println!("Cannot calculate whether {} is a prime", number.to_formatted_string(&Locale::de)),
     }
 }
 
-fn print_prev_prime<T: PrimeCalcExtended>(number: u128, prime_solver: &mut T) {
+fn print_prev_prime(number: u128, prime_solver: &mut Box<dyn PrimeCalc>) {
     match prime_solver.previous_prime(number) {
         None => println!("There is no prime before {}", number.to_formatted_string(&Locale::de)),
         Some(prime) => println!(
@@ -22,7 +22,7 @@ fn print_prev_prime<T: PrimeCalcExtended>(number: u128, prime_solver: &mut T) {
     }
 }
 
-fn print_next_prime<T: PrimeCalcExtended>(number: u128, prime_solver: &mut T) {
+fn print_next_prime(number: u128, prime_solver: &mut Box<dyn PrimeCalc>) {
     match prime_solver.next_prime(number) {
         None => println!("There is no prime calculateable after {}", number.to_formatted_string(&Locale::de)),
         Some(prime) => println!(
@@ -54,18 +54,40 @@ struct Cli {
     /// Searches for next prime instead
     #[arg(short, long)]
     next: bool,
+
+    ///Which algorithm is used
+    #[arg(value_enum, default_value_t = Algorithm::BigNum)]
+    algorithm: Algorithm,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+enum Algorithm {
+    /// used for Big numbers, uses sieve of eratosthenes under the hood
+    BigNum,
+    /// Sieve of Eratosthenes, a bit optimised for memory efficiency
+    Eratosthenes,
+}
+
+impl Algorithm {
+    fn get_prime_solver(&self) -> Box<dyn PrimeCalc> {
+        match *self {
+            Algorithm::BigNum => Box::new(BigPrime::new()),
+            Algorithm::Eratosthenes => Box::new(SieveOfEratosthenes::new()),
+        }
+    }
 }
 
 fn main() {
     let cli = Cli::parse();
 
-    let mut sieve = BigPrime::new();
+    let mut prime_solver: Box<dyn PrimeCalc> = cli.algorithm.get_prime_solver();
+
     if cli.previous {
-        print_prev_prime(cli.number, &mut sieve);
+        print_prev_prime(cli.number, &mut prime_solver);
     } else if cli.next {
-        print_next_prime(cli.number, &mut sieve);
+        print_next_prime(cli.number, &mut prime_solver);
     } else {
-        print_is_prime(cli.number, &mut sieve);
+        print_is_prime(cli.number, &mut prime_solver);
     }
     // 1_000_001
     // 10_000_001
